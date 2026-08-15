@@ -1,0 +1,18 @@
+[package]
+name = "game_of_life"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gol-frontend = { workspace = true }
+
+[workspace]
+members = [
+    "crates/gol-backend",
+    "crates/gol-frontend", "gol-frontend",
+]
+
+[workspace.dependencies]
+gol-backend = { path = "crates/gol-backend" }
+gol-frontend = { path = "crates/gol-frontend" }
+
