@@ -1,42 +1,49 @@
-use std::fs;
-use std::ops::Deref;
-
 use rand::prelude::*;
-use rand::distr::StandardUniform;
+use std::fs;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum State {
-    Dead,
-    Alive,
-}
+use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
-pub struct Grid{
-    cells: Vec<State>,
+pub struct Grid {
+    alive: HashSet<(usize, usize)>,
     height: usize,
-    width: usize
+    width: usize,
 }
 
-impl Grid{
+impl Grid {
     /// Constructor for a Grid instance. Default values for all cells in the new instance are
     /// State::Dead.
     ///
     /// * `height`: total height (number of cells in the y-coordinate)
     /// * `width`: total width (number of cells in the x-coordinate)
-    pub fn new(height: usize, width: usize) -> Self{
+    pub fn new(height: usize, width: usize) -> Self {
         Self {
-            cells: vec![State::Dead; height*width],
+            alive: HashSet::new(),
             height: height,
-            width: width
+            width: width,
         }
     }
 
-    /// Get a mutable reference to an indexed cell. row-major order
+    /// Insert an alive cell at x,y coordinate
     ///
     /// * `x`: x-coordinate (along the width)
     /// * `y`: y-coordinate (along the height)
-    pub fn at(&mut self, x: usize, y: usize) -> Option<&mut State> {
-        self.cells.get_mut(y*self.width + x - 1)
+    pub fn insert_alive(&mut self, x: usize, y: usize) -> bool {
+        assert!(x >= 0 && x <= self.width);
+        assert!(y >= 0 && y <= self.height);
+        if !self.alive.contains(&(x, y)) {
+            self.alive.insert((x, y));
+            return true;
+        }
+        false
+    }
+
+    /// Check if there is an alive cell at certain x,y coordinate
+    ///
+    /// * `x`: x-coordinate (along the width)
+    /// * `y`: y-coordinate (along the height)
+    pub fn is_alive(&self, x: usize, y: usize) -> bool {
+        self.alive.contains(&(x, y))
     }
 
     /// Generates Grid from file. Structure should consist of the following:
@@ -45,12 +52,9 @@ impl Grid{
     ///     - 1 line for each alive cell. Must be CSV, e.g. 100,250
     ///
     /// * `filepath`: Path to the file that contains the map
-    pub fn new_from_file(filepath: &std::path::Path) -> Result<Self>{
-
+    pub fn new_from_file(filepath: &std::path::Path) -> Self {
         let contents = fs::read_to_string(filepath)
-            .unwrap_or_else(|error| {
-                panic!("Could not read {}: {error}", filepath.display())
-            });
+            .unwrap_or_else(|error| panic!("Could not read {}: {error}", filepath.display()));
 
         let mut data = contents.lines();
 
@@ -70,37 +74,34 @@ impl Grid{
 
         let mut output = Self::new(width, height);
 
-        while let n = data.next() {
-            let mut line = n.expect("Shouldn't happen").trim().to_string().split(",");
+        for n in data {
+            let mut line = n.trim().split(",");
 
-            let x_position: usize = line
-                .next()
-                .expect("")
-                .to_string()
-                .parse()
-                .unwrap();
-            let y_position: usize = line
-                .next()
-                .expect("")
-                .to_string()
-                .parse()
-                .unwrap();
+            let x: usize = line.next().expect("").to_string().parse().unwrap();
+            let y: usize = line.next().expect("").to_string().parse().unwrap();
 
-            *output.at(x_position, y_position).unwrap() = State::Alive;
+            output.insert_alive(x, y);
         }
 
-       Ok(output) 
+        output
+    }
+
+    /// Clear all the alive cells.
+    pub fn clear(&mut self) {
+        self.alive = HashSet::new();
     }
 
     /// Randomize the grid that calls the function
-    pub fn randomize(&mut self){
-        for cell in self.cells.iter_mut(){
-            let sampled_value: bool = rand::rng().sample(StandardUniform);
-            if sampled_value{
-                *cell = State::Dead;
-            }
-            else {
-                *cell = State::Alive;
+    pub fn randomize(&mut self) {
+        self.clear();
+        let n = rand::rng().random_range(0..self.width * self.height);
+        for _ in 0..n {
+            loop {
+                let x = rand::rng().random_range(0..self.width);
+                let y = rand::rng().random_range(0..self.height);
+                if self.insert_alive(x, y) {
+                    break;
+                }
             }
         }
     }
@@ -125,28 +126,67 @@ impl Grid{
         self.width
     }
 
-    /// Set a new state for a particular cell
+    /// Check if a x,y coordinatea is within the grid
     ///
     /// * `x`: x-coordinate (along the width)
     /// * `y`: y-coordinate (along the height)
-    /// * `new_state`: The new State value to be set for the cell
-    pub fn set_state(&mut self, x: usize, y: usize, new_state: State) {
-        *self.at(x, y).unwrap() = new_state;
+    fn is_inside(&self, x: usize, y: usize) -> bool {
+        x <= self.width && y <= self.height
     }
 
-    pub fn alive_neighbors(&mut self, x:usize, y:usize) -> u8 {
-        let mut count: u8 = 0;
+    /// List all the neighbors to alive cells
+    pub fn list_all_neighbors(&self) -> HashSet<(usize, usize)> {
+        let mut neighbors = HashSet::new();
 
-        if *self.at(x-1, y-1).unwrap().deref() == State::Alive{ count += 1;}
-        if *self.at(x-1, y).unwrap().deref() == State::Alive{ count += 1;}
-        if *self.at(x-1, y+1).unwrap().deref() == State::Alive{ count += 1;}
-        if *self.at(x, y-1).unwrap().deref() == State::Alive{ count += 1;}
-        if *self.at(x, y+1).unwrap().deref() == State::Alive{ count += 1;}
-        if *self.at(x+1, y-1).unwrap().deref() == State::Alive{ count += 1;}
-        if *self.at(x-1, y).unwrap().deref() == State::Alive{ count += 1;}
-        if *self.at(x-1, y+1).unwrap().deref() == State::Alive{ count += 1;}
+        for cell in self.alive.iter() {
+            let relevant_cells = [
+                (cell.0 - 1, cell.1 - 1),
+                (cell.0 - 1, cell.1),
+                (cell.0 - 1, cell.1 + 1),
+                (cell.0, cell.1 - 1),
+                (cell.0, cell.1 + 1),
+                (cell.0 + 1, cell.1 - 1),
+                (cell.0 + 1, cell.1),
+                (cell.0 + 1, cell.1 + 1),
+            ];
+            for rel in relevant_cells {
+                if !self.is_alive(rel.0, rel.1) && self.is_inside(rel.0, rel.1) {
+                    neighbors.insert(rel);
+                }
+            }
+        }
+
+        neighbors
+    }
+
+    /// Add a reference to the set of alive cells
+    pub fn get_alive(&self) -> &HashSet<(usize, usize)> {
+        &self.alive
+    }
+
+    pub fn count_alive_neighbors(&self, x: usize, y: usize) -> usize {
+        let mut count: usize = 0;
+        let relevant_cells = [
+            (x - 1, y - 1),
+            (x - 1, y),
+            (x - 1, y + 1),
+            (x, y - 1),
+            (x, y + 1),
+            (x + 1, y - 1),
+            (x + 1, y),
+            (x + 1, y + 1),
+        ];
+
+        for cell in relevant_cells.iter() {
+            if self.is_alive(cell.0, cell.1) {
+                count += 1;
+            }
+        }
 
         count
     }
 
+    pub fn set_alive(&mut self, alive: HashSet<(usize, usize)>) {
+        self.alive = alive;
+    }
 }
