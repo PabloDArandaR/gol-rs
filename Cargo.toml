@@ -10,7 +10,7 @@ glutin-winit = "0.5.0"
 gol-frontend = { workspace = true }
 
 [workspace]
-members = [
+members = ["crates/common",
     "crates/gol-backend",
     "crates/gol-frontend"
 ]
@@ -18,4 +18,6 @@ members = [
 [workspace.dependencies]
 gol-backend = { path = "crates/gol-backend" }
 gol-frontend = { path = "crates/gol-frontend" }
+common = { path = "crates/common" }
+
 

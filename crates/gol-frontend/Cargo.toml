@@ -11,3 +11,4 @@ glutin-winit = "0.5.0"
 gol-backend = { workspace = true }
 raw-window-handle = "0.6.2"
 winit = "0.30.13"
+common = {workspace = true}

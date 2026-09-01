@@ -1,3 +1,5 @@
+use gol_frontend::app::App;
+
 fn main() {
-    gol_frontend::run();
+    App::run();
 }

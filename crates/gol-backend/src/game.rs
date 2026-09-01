@@ -1,49 +1,45 @@
 use std::collections::HashSet;
 
-use crate::limited_grid_map::Grid;
+use crate::game_state::GameState;
+use common::cell::CellInstance;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Game {
-    grid: Option<Box<Grid>>,
+    current_state: GameState,
 }
 
 impl Game {
     pub fn new() -> Self {
-        Game { grid: None }
-    }
-
-    pub fn set_grid(&mut self, grid: Box<Grid>) {
-        self.grid = Some(grid);
+        Game {
+            current_state: GameState::new(),
+        }
     }
 
     /// Core function of the Game class. It advances the game 1 iteration. Follows the standard
     /// rules of the game of life
-    pub fn advance(&mut self) {
-        let grid = self.get_grid().unwrap();
-        let alive_list = grid.get_alive();
-        let neighbors_list = self.get_grid().unwrap().list_all_neighbors();
-        let mut new_alive_list: HashSet<(usize, usize)> = HashSet::new();
-        for cell in neighbors_list.iter() {
-            if self
-                .get_grid()
-                .unwrap()
-                .count_alive_neighbors(cell.0, cell.1)
-                == 3 as usize
-            {
-                new_alive_list.insert(*cell);
+    pub fn advance(&mut self) -> (HashSet<CellInstance>, HashSet<CellInstance>) {
+        let mut new_alive = HashSet::new();
+        let mut new_dead = HashSet::new();
+        let new_candidate_count = self.get_candidate_count();
+        let mut new_alive_list: HashSet<CellInstance> = HashSet::new();
+        for candidate in new_candidate_count.iter() {
+            if self.current_state.get_alive().contains(candidate.0) {
+                if *candidate.1 >= 2 && *candidate.1 <= 3 {
+                    new_alive_list.insert(*candidate.0);
+                } else {
+                    new_dead.insert(*candidate.0);
+                }
+            } else {
+                if *candidate.1 == 3 {
+                    new_alive_list.insert(*candidate.0);
+                    new_alive.insert(*candidate.0);
+                }
             }
         }
-        for cell in alive_list.iter() {
-            let n_alive_neighbors = self
-                .get_grid()
-                .unwrap()
-                .count_alive_neighbors(cell.0, cell.1);
-            if n_alive_neighbors == 2 || n_alive_neighbors == 3 {
-                new_alive_list.insert(*cell);
-            }
-        }
-        let mut grid = self.get_grid().unwrap();
-        grid.set_alive(new_alive_list);
+        self.current_state.set_alive(new_alive_list);
+
+        (new_alive, new_dead)
     }
 
     pub fn advance_n(&mut self, n: usize) {
@@ -52,7 +48,27 @@ impl Game {
         }
     }
 
-    pub fn get_grid(&self) -> Option<Grid> {
-        self.grid.as_deref().cloned()
+    pub fn get_candidate_count(&self) -> HashMap<CellInstance, usize> {
+        let mut output = HashMap::new();
+        for cell in self.current_state.get_alive().iter() {
+            let relevant_cells = [
+                CellInstance::new([cell.position[0] - 1, cell.position[1] - 1]),
+                CellInstance::new([cell.position[0] - 1, cell.position[1]]),
+                CellInstance::new([cell.position[0] - 1, cell.position[1] + 1]),
+                CellInstance::new([cell.position[0], cell.position[1] - 1]),
+                CellInstance::new([cell.position[0], cell.position[1] + 1]),
+                CellInstance::new([cell.position[0] + 1, cell.position[1] - 1]),
+                CellInstance::new([cell.position[0] + 1, cell.position[1]]),
+                CellInstance::new([cell.position[0] + 1, cell.position[1] + 1]),
+            ];
+            for neighbor in relevant_cells {
+                if output.contains_key(&neighbor) {
+                    *output.get_mut(&neighbor).unwrap() += 1;
+                } else {
+                    output.insert(neighbor, 1);
+                }
+            }
+        }
+        output
     }
 }
