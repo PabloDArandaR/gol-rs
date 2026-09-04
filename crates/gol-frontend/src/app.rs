@@ -1,14 +1,22 @@
+use std::time::{Duration, Instant};
+
 use crate::graphics::Graphics;
 use crate::visual_configuration::VisualsConfiguration;
 
 use gol_backend::game::Game;
-use winit::{application::ApplicationHandler, event::WindowEvent};
+use winit::{
+    application::ApplicationHandler,
+    event::WindowEvent,
+    event_loop::{ControlFlow, EventLoop},
+};
 
 #[derive(Debug)]
 pub struct App {
-    game: Option<Game>,
+    game: Game,
     graphics: Option<Graphics>,
-    visuals_config: Option<VisualsConfiguration>,
+    visuals_config: VisualsConfiguration,
+    tick_rate: Duration,
+    next_tick: Instant,
 }
 
 impl App {
@@ -17,57 +25,41 @@ impl App {
         let game = Game::new();
 
         Self {
-            game: Some(game),
+            game: game,
             graphics: None,
-            visuals_config: Some(visuals_config),
+            visuals_config: visuals_config,
+            tick_rate: Duration::from_millis(100),
+            next_tick: Instant::now(),
         }
     }
     pub fn run() {
-        loop {
-            /*
-            unsafe {
-                gl.clear_color(0.1, 0.2, 0.3, 1.0);
-                gl.clear(glow::COLOR_BUFFER_BIT);
-            }
+        let event_loop = EventLoop::new().unwrap();
+        event_loop.set_control_flow(ControlFlow::Wait);
 
-            surface.swap_buffers(&context).unwrap();
-            */
-        }
+        let mut app = App::new(None);
 
-        //event_loop.set_control_flow(ControlFlow::Poll);
-
-        //event_loop.set_control_flow(ControlFlow::Wait);
-
-        //let mut app = App::default();
-
-        //event_loop.run_app(&mut app);
+        let _ = event_loop.run_app(&mut app);
     }
 
-    fn render(&self) {
-        // self.graphics.unwrap().render(self.visuals_config);
+    fn render(&mut self) {
+        self.graphics.as_mut().unwrap().render(&self.visuals_config);
     }
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        /*
-        self.window = Some(
-            event_loop
-                .create_window(Window::default_attributes())
-                .unwrap(),
-        );
-        //self.window.as_mut().unwrap().set_resizable(false);
-
-        if self.graphics == None {
-            self.graphics == Graphics::new(self.event_loop);
+        if self.graphics.is_none() {
+            let mut graphics = Graphics::new();
+            graphics.init(event_loop);
+            graphics.request_redraw();
+            self.graphics = Some(graphics);
         }
-        */
     }
 
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
         match event {
@@ -77,19 +69,26 @@ impl ApplicationHandler for App {
             }
             WindowEvent::Resized(size) => {
                 println!("New size: {} x {}", size.width, size.height);
+                self.graphics.as_mut().unwrap().resize(size);
             }
             WindowEvent::RedrawRequested => {
-                if self.graphics.is_none() {
-                    //self.graphics.unwrap().render(&self.visuals_config.unwrap());
-                }
-                // Add a request_redraw()
-                self.graphics
-                    .as_mut()
-                    .unwrap()
-                    .render(&self.visuals_config.as_ref().unwrap());
                 self.render();
             }
             _ => (),
         }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let now = Instant::now();
+        if now >= self.next_tick {
+            let update = self.game.advance();
+            if let Some(graphics) = self.graphics.as_mut() {
+                graphics.get_buffer_mut().add_game_update(&update);
+                graphics.request_redraw();
+            }
+
+            self.next_tick = now + self.tick_rate;
+        }
+        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
     }
 }
