@@ -1,15 +1,11 @@
-use glow::Buffer;
 use glow::HasContext;
-use glow::VertexArray;
 use std::collections::HashMap;
 use std::ops::Index;
 use std::rc::Rc;
 use std::vec::Vec;
 
-use crate::color::Color;
-use crate::utils;
-use crate::utils::load_shader;
 use common::cell::CellInstance;
+use gol_backend::game_state::GameStateUpdate;
 
 // TODO: Refactor 1: only 1 instance is used in CPU side
 // TODO: Refactor 2: we drop any actual CPU memory, and everything is stored in the GPU
@@ -73,7 +69,7 @@ impl CellRenderBuffer {
             // Fill the instance_VBO data
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(instance_vbo));
             gl.enable_vertex_attrib_array(1);
-            gl.vertex_attrib_pointer_f32(1, 2, glow::INT, false, 2 * 4, 0);
+            gl.vertex_attrib_pointer_i32(1, 2, glow::INT, 2 * 4, 0);
 
             gl.vertex_attrib_divisor(0, 0);
             gl.vertex_attrib_divisor(1, 1);
@@ -187,5 +183,24 @@ impl CellRenderBuffer {
             self.gl
                 .draw_arrays_instanced(glow::TRIANGLES, 0, 6, self.instances.len() as i32);
         };
+    }
+
+    pub fn add_game_update(&mut self, update: &GameStateUpdate) {
+        for nd in update.get_new_dead() {
+            self.delete_instance(*nd);
+        }
+        for na in update.get_new_alive() {
+            self.add_instance(*na);
+        }
+    }
+}
+
+impl Drop for CellRenderBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            self.gl.delete_buffer(self.mesh_vbo);
+            self.gl.delete_buffer(self.instances_vbo);
+            self.gl.delete_vertex_array(self.vao);
+        }
     }
 }

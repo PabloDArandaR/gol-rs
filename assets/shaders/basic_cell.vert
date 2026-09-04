@@ -4,5 +4,6 @@ layout (location = 1) in ivec2 cellPos;
 
 void main()
 {
-    gl_Position = vec4(cellPos.x + meshPos.x, cellPos.y + meshPos.y, 1.0, 1.0);
+	vec2 pos = meshPos + vec2(cellPos);
+    	gl_Position = vec4(pos, 0.0, 1.0);
 }
