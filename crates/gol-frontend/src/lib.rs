@@ -1,5 +1,5 @@
 pub mod app;
-pub mod cell;
+pub mod cell_buffer;
 pub mod color;
 pub mod graphics;
 pub mod utils;
