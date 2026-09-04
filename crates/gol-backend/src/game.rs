@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::game_state::GameState;
+use crate::game_state::{GameState, GameStateUpdate};
 use common::cell::CellInstance;
 use std::collections::HashMap;
 
@@ -10,6 +10,7 @@ pub struct Game {
 }
 
 impl Game {
+    /// Constructor of a game
     pub fn new() -> Self {
         Game {
             current_state: GameState::new(),
@@ -18,7 +19,7 @@ impl Game {
 
     /// Core function of the Game class. It advances the game 1 iteration. Follows the standard
     /// rules of the game of life
-    pub fn advance(&mut self) -> (HashSet<CellInstance>, HashSet<CellInstance>) {
+    pub fn advance(&mut self) -> GameStateUpdate {
         let mut new_alive = HashSet::new();
         let mut new_dead = HashSet::new();
         let new_candidate_count = self.get_candidate_count();
@@ -39,15 +40,20 @@ impl Game {
         }
         self.current_state.set_alive(new_alive_list);
 
-        (new_alive, new_dead)
+        GameStateUpdate::new(new_alive, new_dead)
     }
 
+    /// Adcances the game for a given amount of steps
+    ///
+    /// * `n`: number of steps to advance the game
     pub fn advance_n(&mut self, n: usize) {
         for _ in 1..n {
             self.advance();
         }
     }
 
+    /// Get a hashMap that has candidate CellInstances as keys and the amount of neighbouring cells
+    /// that are alive as value
     pub fn get_candidate_count(&self) -> HashMap<CellInstance, usize> {
         let mut output = HashMap::new();
         for cell in self.current_state.get_alive().iter() {
