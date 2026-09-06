@@ -1,8 +1,8 @@
 #version 420 core
-uniform vec4 aliveColor;
+uniform vec4 alive_color;
 out vec4 FragColor;
 
 void main()
 {
-	FragColor = aliveColor;
+	FragColor = alive_color;
 }

@@ -11,7 +11,7 @@ impl VisualsConfiguration {
     pub fn new() -> Self {
         VisualsConfiguration {
             percentage_cell_size: 0.1,
-            alive_color: Color::new(92.0, 155.0, 39.0, 0.83),
+            alive_color: Color::new(0.3607843, 0.607843, 0.152941, 0.83),
             dead_color: Color::new(0.0, 0.0, 0.0, 1.0),
         }
     }
